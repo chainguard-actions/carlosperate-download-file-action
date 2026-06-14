@@ -1,0 +1,41 @@
+name: Test basic download with file-url and file-name
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          file-url: https://raw.githubusercontent.com/actions/checkout/main/README.md
+          file-name: downloaded-readme.md
+          location: /tmp/downloads
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path output is set to $FILE_PATH"
+      - name: Assert downloaded file exists with correct name
+        run: |
+          if [ ! -f "/tmp/downloads/downloaded-readme.md" ]; then
+            echo "FAIL: expected file /tmp/downloads/downloaded-readme.md not found"
+            ls /tmp/downloads/ || true
+            exit 1
+          fi
+          echo "PASS: file exists at /tmp/downloads/downloaded-readme.md"
+      - name: Assert file has content
+        run: |
+          SIZE=$(wc -c < /tmp/downloads/downloaded-readme.md)
+          echo "file size: $SIZE bytes"
+          if [ "$SIZE" -eq 0 ]; then
+            echo "FAIL: downloaded file is empty"
+            exit 1
+          fi
+          echo "PASS: file has content"

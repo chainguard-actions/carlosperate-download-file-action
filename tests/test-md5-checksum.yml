@@ -1,0 +1,41 @@
+name: Test download with MD5 checksum verification
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Compute MD5 of target file
+        id: compute-md5
+        run: |
+          # Download the file first to get its MD5
+          curl -sL https://raw.githubusercontent.com/actions/checkout/main/LICENSE -o /tmp/license-for-md5.txt
+          MD5=$(md5sum /tmp/license-for-md5.txt | awk '{print $1}')
+          echo "md5=$MD5" >> $GITHUB_OUTPUT
+          echo "Computed MD5: $MD5"
+      - id: action
+        uses: .
+        with:
+          file-url: https://raw.githubusercontent.com/actions/checkout/main/LICENSE
+          file-name: license.txt
+          location: /tmp/md5-test
+          md5: ${{ steps.compute-md5.outputs.md5 }}
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path output is set"
+      - name: Assert downloaded file exists
+        run: |
+          if [ ! -f "/tmp/md5-test/license.txt" ]; then
+            echo "FAIL: expected file /tmp/md5-test/license.txt not found"
+            ls /tmp/md5-test/ || true
+            exit 1
+          fi
+          echo "PASS: file exists at /tmp/md5-test/license.txt"
