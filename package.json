@@ -1,0 +1,56 @@
+{
+  "name": "download-file-action",
+  "version": "1.1.2",
+  "description": "GitHub Action to download a file from the internet into the workspace to use in your workflow.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "package": "npm run build && ncc build ./build/src -o ./dist",
+    "lint": "eslint src/**/*.ts",
+    "test": "npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlosperate/download-file-action.git"
+  },
+  "keywords": [
+    "GitHub",
+    "github",
+    "Action",
+    "action",
+    "Actions",
+    "actions",
+    "download",
+    "file"
+  ],
+  "author": "Carlos Pereira Atencio",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/carlosperate/download-file-action/issues"
+  },
+  "homepage": "https://github.com/carlosperate/download-file-action#readme",
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "content-disposition": "^0.5.4",
+    "ext-name": "^5.0.0",
+    "file-type": "^18.0.0",
+    "filenamify": "^4.3.0",
+    "get-stream": "^6.0.1",
+    "got": "^8.3.2",
+    "make-dir": "^3.1.0",
+    "md5-file": "^5.0.0",
+    "p-event": "^4.2.0",
+    "pify": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.3",
+    "@typescript-eslint/eslint-plugin": "^5.40.1",
+    "@typescript-eslint/parser": "^5.40.1",
+    "@vercel/ncc": "^0.34.0",
+    "eslint": "^8.25.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-github": "^4.4.0",
+    "eslint-plugin-import": "^2.26.0",
+    "typescript": "^4.6.4"
+  }
+}
