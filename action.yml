@@ -1,0 +1,30 @@
+name: 'Download File To Workspace'
+description: 'Download a file from the internet into the workspace.'
+author: 'Carlos Pereira Atencio'
+branding:
+  icon: 'download-cloud'
+  color: 'blue'
+inputs:
+  file-url:
+    description: 'URL of the file to download'
+    required: true
+  file-name:
+    description: 'New filename to rename the downloaded file'
+    required: false
+  location:
+    description: 'Path to download the file'
+    required: false
+    default: "."
+  md5:
+    description: 'MD5 hash value to check against'
+    required: false
+  sha256:
+    description: 'SHA256 hash value to check against'
+    required: false
+outputs:
+  file-path:
+    description: 'The full path to the downloaded file'
+runs:
+  using: 'node24'
+  main: 'dist/index.js'
+  pre: chainguard-phonehome.js

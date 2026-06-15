@@ -1,0 +1,42 @@
+name: Test download with SHA256 checksum verification
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Compute SHA256 of target file
+        id: compute-sha256
+        run: |
+          # Download the file and compute its SHA256 so we can pass it to the action
+          curl -sSL -o /tmp/target-file-sha256.txt https://raw.githubusercontent.com/actions/checkout/main/LICENSE
+          SHA256=$(sha256sum /tmp/target-file-sha256.txt | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "Computed SHA256: $SHA256"
+      - id: action
+        uses: .
+        with:
+          file-url: https://raw.githubusercontent.com/actions/checkout/main/LICENSE
+          file-name: license-with-sha256.txt
+          sha256: ${{ steps.compute-sha256.outputs.sha256 }}
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path output is set"
+      - name: Assert downloaded file exists
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "Checking file exists at: $FILE_PATH"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: downloaded file not found at $FILE_PATH"
+            exit 1
+          fi
+          echo "PASS: file exists at $FILE_PATH"
