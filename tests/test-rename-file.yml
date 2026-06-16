@@ -1,0 +1,38 @@
+name: Test download with custom file name
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          file-url: https://raw.githubusercontent.com/actions/checkout/main/README.md
+          file-name: my-custom-readme.md
+          location: /tmp/renamed-downloads
+      - name: Assert file-path output contains custom name
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          if [[ "$FILE_PATH" != *"my-custom-readme.md"* ]]; then
+            echo "FAIL: expected file-path to contain 'my-custom-readme.md', got: $FILE_PATH"
+            exit 1
+          fi
+          echo "PASS: file-path contains expected custom filename"
+      - name: Assert renamed file exists
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "Checking file at: $FILE_PATH"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: renamed file does not exist at $FILE_PATH"
+            exit 1
+          fi
+          echo "PASS: renamed file exists"
