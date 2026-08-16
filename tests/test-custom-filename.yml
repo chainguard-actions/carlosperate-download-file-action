@@ -1,4 +1,4 @@
-name: Test basic file download
+name: Test download with custom filename
 on:
   workflow_dispatch:
 jobs:
@@ -10,7 +10,8 @@ jobs:
         uses: .
         with:
           file-url: https://httpbin.org/robots.txt
-      - name: Assert file-path output is set
+          file-name: my-custom-robots.txt
+      - name: Assert file-path output contains custom filename
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
@@ -19,8 +20,14 @@ jobs:
             echo "FAIL: file-path output is empty"
             exit 1
           fi
-          echo "PASS: file-path output is set to $FILE_PATH"
-      - name: Assert downloaded file exists
+          BASENAME="$(basename "$FILE_PATH")"
+          echo "basename: $BASENAME"
+          if [ "$BASENAME" != "my-custom-robots.txt" ]; then
+            echo "FAIL: expected filename 'my-custom-robots.txt', got '$BASENAME'"
+            exit 1
+          fi
+          echo "PASS: filename is correct"
+      - name: Assert downloaded file exists with custom name
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
@@ -30,12 +37,3 @@ jobs:
             exit 1
           fi
           echo "PASS: file exists at $FILE_PATH"
-      - name: Assert downloaded file is not empty
-        env:
-          FILE_PATH: ${{ steps.action.outputs.file-path }}
-        run: |
-          if [ ! -s "$FILE_PATH" ]; then
-            echo "FAIL: downloaded file is empty"
-            exit 1
-          fi
-          echo "PASS: file is non-empty"

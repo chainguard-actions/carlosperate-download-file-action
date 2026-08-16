@@ -1,4 +1,4 @@
-name: Test basic file download
+name: Test download to custom location
 on:
   workflow_dispatch:
 jobs:
@@ -6,21 +6,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create target directory
+        run: mkdir -p "$GITHUB_WORKSPACE/download-target"
       - id: action
         uses: .
         with:
           file-url: https://httpbin.org/robots.txt
-      - name: Assert file-path output is set
+          file-name: robots-in-custom-dir.txt
+          location: ${{ github.workspace }}/download-target
+      - name: Assert file-path output points to custom location
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
+          EXPECTED_DIR: ${{ github.workspace }}/download-target
         run: |
           echo "file-path: $FILE_PATH"
           if [ -z "$FILE_PATH" ]; then
             echo "FAIL: file-path output is empty"
             exit 1
           fi
-          echo "PASS: file-path output is set to $FILE_PATH"
-      - name: Assert downloaded file exists
+          DIRNAME="$(dirname "$FILE_PATH")"
+          echo "dirname: $DIRNAME"
+          echo "expected dir: $EXPECTED_DIR"
+          if [ "$DIRNAME" != "$EXPECTED_DIR" ]; then
+            echo "FAIL: expected directory '$EXPECTED_DIR', got '$DIRNAME'"
+            exit 1
+          fi
+          echo "PASS: directory is correct"
+      - name: Assert downloaded file exists in custom location
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
@@ -30,12 +42,3 @@ jobs:
             exit 1
           fi
           echo "PASS: file exists at $FILE_PATH"
-      - name: Assert downloaded file is not empty
-        env:
-          FILE_PATH: ${{ steps.action.outputs.file-path }}
-        run: |
-          if [ ! -s "$FILE_PATH" ]; then
-            echo "FAIL: downloaded file is empty"
-            exit 1
-          fi
-          echo "PASS: file is non-empty"

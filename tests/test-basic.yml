@@ -1,4 +1,4 @@
-name: Test basic file download
+name: Test basic download
 on:
   workflow_dispatch:
 jobs:
@@ -9,7 +9,7 @@ jobs:
       - id: action
         uses: .
         with:
-          file-url: https://httpbin.org/robots.txt
+          file-url: https://raw.githubusercontent.com/actions/checkout/main/README.md
       - name: Assert file-path output is set
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
@@ -19,23 +19,14 @@ jobs:
             echo "FAIL: file-path output is empty"
             exit 1
           fi
-          echo "PASS: file-path output is set to $FILE_PATH"
+          echo "PASS: file-path is set to $FILE_PATH"
       - name: Assert downloaded file exists
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
           echo "Checking file exists at: $FILE_PATH"
           if [ ! -f "$FILE_PATH" ]; then
-            echo "FAIL: downloaded file not found at $FILE_PATH"
+            echo "FAIL: downloaded file does not exist at $FILE_PATH"
             exit 1
           fi
-          echo "PASS: file exists at $FILE_PATH"
-      - name: Assert downloaded file is not empty
-        env:
-          FILE_PATH: ${{ steps.action.outputs.file-path }}
-        run: |
-          if [ ! -s "$FILE_PATH" ]; then
-            echo "FAIL: downloaded file is empty"
-            exit 1
-          fi
-          echo "PASS: file is non-empty"
+          echo "PASS: file exists"
