@@ -1,0 +1,46 @@
+name: Test download with SHA256 verification
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Compute SHA256 of target file
+        id: compute-hash
+        run: |
+          # Download the file and compute its SHA256 so we can pass it to the action
+          SHA=$(curl -sfL 'https://raw.githubusercontent.com/carlosperate/download-file-action/master/LICENSE' | sha256sum | awk '{print $1}')
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Computed SHA256: $SHA"
+      - id: action
+        uses: .
+        with:
+          file-url: 'https://raw.githubusercontent.com/carlosperate/download-file-action/master/LICENSE'
+          file-name: 'LICENSE.txt'
+          sha256: ${{ steps.compute-hash.outputs.sha256 }}
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path output is set"
+      - name: Assert downloaded file exists and has correct name
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "Checking file exists at: $FILE_PATH"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: file not found at $FILE_PATH"
+            exit 1
+          fi
+          BASENAME="$(basename "$FILE_PATH")"
+          if [ "$BASENAME" != "LICENSE.txt" ]; then
+            echo "FAIL: expected filename 'LICENSE.txt' but got '$BASENAME'"
+            exit 1
+          fi
+          echo "PASS: file exists with correct name"

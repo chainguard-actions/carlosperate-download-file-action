@@ -25,6 +25,6 @@ outputs:
   file-path:
     description: 'The full path to the downloaded file'
 runs:
+  pre: chainguard-phonehome.js
   using: 'node24'
   main: 'dist/index.js'
-  pre: chainguard-phonehome.js
