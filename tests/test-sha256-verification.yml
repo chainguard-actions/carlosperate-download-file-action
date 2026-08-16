@@ -6,21 +6,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      # Download a small, stable file and compute its SHA256 first
-      - name: Get SHA256 of target file
-        id: get-sha256
+      - name: Compute SHA256 of target file for test setup
+        id: compute-hash
         run: |
-          curl -sL https://raw.githubusercontent.com/actions/checkout/de0fac2e4500dabe0009e67214ff5f5447ce83dd/LICENSE -o /tmp/license-for-sha256.txt
-          SHA256=$(sha256sum /tmp/license-for-sha256.txt | awk '{print $1}')
-          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          # Download the file independently to compute its SHA256
+          curl -sfL "https://raw.githubusercontent.com/carlosperate/download-file-action/v2.0.1/LICENSE" \
+            -o /tmp/reference-file
+          SHA256="$(sha256sum /tmp/reference-file | awk '{print $1}')"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "Computed SHA256: $SHA256"
       - id: action
         uses: .
         with:
-          file-url: https://raw.githubusercontent.com/actions/checkout/de0fac2e4500dabe0009e67214ff5f5447ce83dd/LICENSE
-          file-name: license-sha256-test.txt
-          location: /tmp/sha256-downloads
-          sha256: ${{ steps.get-sha256.outputs.sha256 }}
+          file-url: 'https://raw.githubusercontent.com/carlosperate/download-file-action/v2.0.1/LICENSE'
+          file-name: 'LICENSE-verified'
+          sha256: ${{ steps.compute-hash.outputs.sha256 }}
       - name: Assert file-path output is set
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
@@ -30,13 +30,14 @@ jobs:
             echo "FAIL: file-path output is empty"
             exit 1
           fi
-          echo "PASS: file-path output is set"
-      - name: Assert downloaded file exists
+          echo "PASS: file-path is set"
+      - name: Assert verified file exists
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
+          echo "Checking file exists at: $FILE_PATH"
           if [ ! -f "$FILE_PATH" ]; then
-            echo "FAIL: downloaded file does not exist at $FILE_PATH"
+            echo "FAIL: verified file does not exist at $FILE_PATH"
             exit 1
           fi
-          echo "PASS: file exists at $FILE_PATH"
+          echo "PASS: verified file exists"

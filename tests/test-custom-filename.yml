@@ -1,4 +1,4 @@
-name: Test basic file download
+name: Test download with custom filename
 on:
   workflow_dispatch:
 jobs:
@@ -10,7 +10,8 @@ jobs:
         uses: .
         with:
           file-url: 'https://raw.githubusercontent.com/carlosperate/download-file-action/master/README.md'
-      - name: Assert file-path output is set
+          file-name: 'my-custom-readme.md'
+      - name: Assert file-path output contains custom filename
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
@@ -19,14 +20,20 @@ jobs:
             echo "FAIL: file-path output is empty"
             exit 1
           fi
-          echo "PASS: file-path output is set to $FILE_PATH"
-      - name: Assert downloaded file exists
+          BASENAME="$(basename "$FILE_PATH")"
+          echo "basename: $BASENAME"
+          if [ "$BASENAME" != "my-custom-readme.md" ]; then
+            echo "FAIL: expected filename 'my-custom-readme.md', got '$BASENAME'"
+            exit 1
+          fi
+          echo "PASS: filename matches"
+      - name: Assert renamed file exists on disk
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
           echo "Checking file exists at: $FILE_PATH"
           if [ ! -f "$FILE_PATH" ]; then
-            echo "FAIL: downloaded file does not exist at $FILE_PATH"
+            echo "FAIL: renamed file does not exist at $FILE_PATH"
             exit 1
           fi
-          echo "PASS: file exists"
+          echo "PASS: renamed file exists"

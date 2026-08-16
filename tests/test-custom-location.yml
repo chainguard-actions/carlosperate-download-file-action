@@ -1,0 +1,38 @@
+name: Test download to custom location
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create target directory
+        run: mkdir -p /tmp/download-test-dir
+      - id: action
+        uses: .
+        with:
+          file-url: 'https://raw.githubusercontent.com/carlosperate/download-file-action/master/README.md'
+          file-name: 'downloaded.md'
+          location: '/tmp/download-test-dir'
+      - name: Assert file-path output points to custom location
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          EXPECTED="/tmp/download-test-dir/downloaded.md"
+          if [ "$FILE_PATH" != "$EXPECTED" ]; then
+            echo "FAIL: expected file-path '$EXPECTED', got '$FILE_PATH'"
+            exit 1
+          fi
+          echo "PASS: file-path matches expected location"
+      - name: Assert file exists in custom location
+        run: |
+          if [ ! -f "/tmp/download-test-dir/downloaded.md" ]; then
+            echo "FAIL: file not found at /tmp/download-test-dir/downloaded.md"
+            exit 1
+          fi
+          echo "PASS: file exists in custom location"
