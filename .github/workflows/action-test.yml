@@ -1,0 +1,216 @@
+name: Workflow To Test Action
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-build:
+    name: Lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
+      - run: npm install
+      - run: npm run lint
+      - run: npm run package
+
+  action-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+    name: Test Action - ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3
+
+      - name: Test no "file-url" parameter
+        continue-on-error: true
+        uses: ./
+        id: no-param-file-url
+      - name: Fail workflow if no file-url test didn't raise an error
+        if: steps.no-param-file-url == 'success'
+        run: exit 1
+
+      - name: 010 - Simple test to download a file
+        uses: ./
+        id: download-poetry-simple
+        with:
+          file-url: 'https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py'
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-simple.outputs.file-path }}
+        run: echo "The file was downloaded to $FILE_PATH"
+      - name: 010 - Test file exists
+        run: python -c "import os; exit(not os.path.isfile('get-poetry.py'))"
+      - name: 010 - Test action output path is correct
+        env:
+          FILE_PATH: ${{ steps.download-poetry-simple.outputs.file-path }}
+        run: python -c "import os; exit(not r'$FILE_PATH' == os.path.abspath('get-poetry.py'))"
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-simple.outputs.file-path }}
+        run: ls && rm "$FILE_PATH" && ls
+
+      - name: 020 - Test to download a file with a different filename
+        uses: ./
+        id: download-poetry-name
+        with:
+          file-url: 'https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py'
+          file-name: 'new_name.py'
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-name.outputs.file-path }}
+        run: echo "The file was downloaded to $FILE_PATH"
+      - name: 020 - Test file exists
+        run: python -c "import os; exit(not os.path.isfile('new_name.py'))"
+      - name: 020 - Test action output path is correct
+        env:
+          FILE_PATH: ${{ steps.download-poetry-name.outputs.file-path }}
+        run: python -c "import os; exit(not r'$FILE_PATH' == os.path.abspath('new_name.py'))"
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-name.outputs.file-path }}
+        run: ls && rm "$FILE_PATH" && ls
+
+      - name: 030 - Test to download a file to a different path
+        uses: ./
+        id: download-poetry-location
+        with:
+          file-url: 'https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py'
+          location: 'new_folder'
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-location.outputs.file-path }}
+        run: echo "The file was downloaded to $FILE_PATH"
+      - name: 030 - Test file exists
+        run: python -c "import os; exit(not os.path.isfile('new_folder/get-poetry.py'))"
+      - name: 030 - Test action output path is correct
+        env:
+          FILE_PATH: ${{ steps.download-poetry-location.outputs.file-path }}
+        run: python -c "import os; exit(not r'$FILE_PATH' == os.path.abspath('new_folder/get-poetry.py'))"
+      - run: ls && ls new_folder && rm -r new_folder && ls
+
+      - name: 040 - Test to download a file to a relative path
+        uses: ./
+        id: download-poetry-relative
+        with:
+          file-url: 'https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py'
+          location: '../'
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-relative.outputs.file-path }}
+        run: echo "The file was downloaded to $FILE_PATH"
+      - name: 040 - Test file exists
+        run: python -c "import os; exit(not os.path.isfile('../get-poetry.py'))"
+      - name: 040 - Test action output path is correct
+        env:
+          FILE_PATH: ${{ steps.download-poetry-relative.outputs.file-path }}
+        run: python -c "import os; exit(not r'$FILE_PATH' == os.path.abspath('../get-poetry.py'))"
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-relative.outputs.file-path }}
+        run: ls ../ && rm "$FILE_PATH" && ls ../
+
+      - name: 050 - Test to download a file to an absolute path
+        uses: ./
+        id: download-poetry-absolute
+        with:
+          file-url: 'https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py'
+          location: '${{ github.workspace }}/a_folder'
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-absolute.outputs.file-path }}
+        run: echo "The file was downloaded to $FILE_PATH"
+      - name: 050 - Test file exists
+        env:
+          WORKSPACE: ${{ github.workspace }}
+        run: python -c "import os; exit(not os.path.isfile(r'$WORKSPACE/a_folder/get-poetry.py'))"
+      - name: 050 - Test action output path is correct
+        env:
+          FILE_PATH: ${{ steps.download-poetry-absolute.outputs.file-path }}
+          WORKSPACE: ${{ github.workspace }}
+        run: python -c "import os; exit(not r'$FILE_PATH' == os.path.abspath(r'$WORKSPACE/a_folder/get-poetry.py'))"
+      - env:
+          WORKSPACE: ${{ github.workspace }}
+        run: ls "$WORKSPACE" && ls "$WORKSPACE/a_folder" && rm -r "$WORKSPACE/a_folder" && ls "$WORKSPACE"
+
+      - name: 060 - Test to download a file to a different filename and path
+        uses: ./
+        id: download-poetry-both
+        with:
+          file-url: 'https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py'
+          location: 'different_folder'
+          file-name: 'new_name.py'
+      - env:
+          FILE_PATH: ${{ steps.download-poetry-both.outputs.file-path }}
+        run: echo "The file was downloaded to $FILE_PATH"
+      - name: 060 - Test file exists
+        run: python -c "import os; exit(not os.path.isfile('different_folder/new_name.py'))"
+      - name: 060 - Test action output path is correct
+        env:
+          FILE_PATH: ${{ steps.download-poetry-both.outputs.file-path }}
+        run: python -c "import os; exit(not r'$FILE_PATH' == os.path.abspath('different_folder/new_name.py'))"
+      - run: ls different_folder && rm -r different_folder
+
+      - name: 070 - Test to download a file and match MD5 in lowercase
+        uses: ./
+        id: download-tar-md5
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/archive/refs/tags/v1.0.3.tar.gz'
+          file-name: 'name_md5.tar.gz'
+          md5: 'e3b51204dedc75588ca164a26b51610d'
+      - name: 070 - Test file exists
+        run: python -c "import os, sys; sys.exit(not os.path.isfile('name_md5.tar.gz'))"
+      - run: rm name_md5.tar.gz
+
+      - name: 080 - Test to download a file and match MD5 in UPPERCASE
+        uses: ./
+        id: download-tar-md5-uppercase
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/archive/refs/tags/v1.0.3.tar.gz'
+          file-name: 'name_md5.tar.gz'
+          md5: 'E3B51204DEDC75588CA164A26B51610D'
+      - name: 080 - Test file exists
+        run: python -c "import os, sys; sys.exit(not os.path.isfile('name_md5.tar.gz'))"
+      - run: rm name_md5.tar.gz
+
+      - name: 090 - Test bad MD5 value
+        continue-on-error: true
+        uses: ./
+        id: download-tar-md5-bad
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/archive/refs/tags/v1.0.3.tar.gz'
+          md5: '12345678901234567890123456789012'
+      - name: 090 - Fail workflow if bad MD5 test didn't raise an error
+        if: steps.download-tar-md5-bad.outcome == 'success'
+        run: exit 1
+      - run: rm download-file-action-1.0.3.tar.gz
+
+      - name: 100 - Test to download a file and match SHA256 in lowercase
+        uses: ./
+        id: download-tar-sha256
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/archive/refs/tags/v1.0.3.tar.gz'
+          file-name: 'name_sha256.tar.gz'
+          sha256: '76ef5cf6e910a4955f713fb36cca6f90ffeee6ffafe743754716e149d68136de'
+      - name: 100 - Test file exists
+        run: python -c "import os, sys; sys.exit(not os.path.isfile('name_sha256.tar.gz'))"
+      - run: rm name_sha256.tar.gz
+
+      - name: 110 - Test to download a file and match SHA256 in UPPERCASE
+        uses: ./
+        id: download-tar-sha256-uppercase
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/archive/refs/tags/v1.0.3.tar.gz'
+          file-name: 'name_sha256_upper.tar.gz'
+          sha256: '76EF5CF6E910A4955F713FB36CCA6F90FFEEE6FFAFE743754716E149D68136DE'
+      - name: 110 - Test file exists
+        run: python -c "import os, sys; sys.exit(not os.path.isfile('name_sha256_upper.tar.gz'))"
+      - run: rm name_sha256_upper.tar.gz
+
+      - name: 120 - Test bad SHA256 value
+        continue-on-error: true
+        uses: ./
+        id: download-tar-sha256-bad
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/archive/refs/tags/v1.0.3.tar.gz'
+          sha256: '1234567890123456789012345678901234567890123456789012345678901234'
+      - name: 120 - Fail workflow if bad SHA256 test didn't raise an error
+        if: steps.download-tar-sha256-bad.outcome == 'success'
+        run: exit 1
+      - run: rm download-file-action-1.0.3.tar.gz

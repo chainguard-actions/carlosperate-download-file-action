@@ -1,0 +1,50 @@
+name: Test download with MD5 checksum
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start local HTTP server and compute MD5
+        id: setup
+        run: |
+          mkdir -p /tmp/serve
+          echo -n "MD5 checksum test content" > /tmp/serve/md5test.txt
+          cd /tmp/serve && python3 -m http.server 8765 &
+          echo "HTTP_PID=$!" >> "$GITHUB_ENV"
+          sleep 1
+          curl -sf http://localhost:8765/md5test.txt || (echo "Server not ready"; exit 1)
+          HASH=$(md5sum /tmp/serve/md5test.txt | awk '{print $1}')
+          echo "md5=$HASH" >> "$GITHUB_OUTPUT"
+          echo "Computed MD5: $HASH"
+      - id: action
+        uses: .
+        with:
+          file-url: http://localhost:8765/md5test.txt
+          file-name: LICENSE-md5-check.txt
+          md5: ${{ steps.setup.outputs.md5 }}
+      - name: Stop local HTTP server
+        if: always()
+        run: |
+          kill "$HTTP_PID" 2>/dev/null || true
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path is set"
+      - name: Assert downloaded file exists and MD5 checksum passed
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "Checking file at: $FILE_PATH"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: file not found at $FILE_PATH (MD5 checksum may have failed)"
+            exit 1
+          fi
+          echo "PASS: file exists and MD5 checksum was verified"

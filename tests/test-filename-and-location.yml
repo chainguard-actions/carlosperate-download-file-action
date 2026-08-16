@@ -1,0 +1,61 @@
+name: Test download with filename and location combined
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start local HTTP server
+        run: |
+          mkdir -p /tmp/serve
+          echo "Filename and location test content" > /tmp/serve/source.txt
+          cd /tmp/serve && python3 -m http.server 8765 &
+          echo "HTTP_PID=$!" >> "$GITHUB_ENV"
+          sleep 1
+          curl -sf http://localhost:8765/source.txt || (echo "Server not ready"; exit 1)
+          echo "Local server started"
+      - name: Create target directory
+        run: mkdir -p output/files
+      - id: action
+        uses: .
+        with:
+          file-url: http://localhost:8765/source.txt
+          file-name: my-license.txt
+          location: output/files
+      - name: Stop local HTTP server
+        if: always()
+        run: |
+          kill "$HTTP_PID" 2>/dev/null || true
+      - name: Assert file-path output contains both location and filename
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          if [[ "$FILE_PATH" != *"output/files"* ]]; then
+            echo "FAIL: file-path does not contain expected location 'output/files', got: $FILE_PATH"
+            exit 1
+          fi
+          if [[ "$FILE_PATH" != *"my-license.txt"* ]]; then
+            echo "FAIL: file-path does not contain expected filename 'my-license.txt', got: $FILE_PATH"
+            exit 1
+          fi
+          echo "PASS: file-path contains both location and filename"
+      - name: Assert file exists at combined path
+        run: |
+          if [ ! -f "output/files/my-license.txt" ]; then
+            echo "FAIL: file not found at output/files/my-license.txt"
+            exit 1
+          fi
+          echo "PASS: file exists at output/files/my-license.txt"
+      - name: Assert file content is non-empty
+        run: |
+          if [ ! -s "output/files/my-license.txt" ]; then
+            echo "FAIL: downloaded file is empty"
+            exit 1
+          fi
+          echo "PASS: file content is non-empty"

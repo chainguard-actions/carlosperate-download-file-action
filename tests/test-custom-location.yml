@@ -1,4 +1,4 @@
-name: Test basic download
+name: Test download with custom location
 on:
   workflow_dispatch:
 jobs:
@@ -9,22 +9,24 @@ jobs:
       - name: Start local HTTP server
         run: |
           mkdir -p /tmp/serve
-          echo "Hello from download-file-action test" > /tmp/serve/testfile.txt
+          echo "Custom location test content" > /tmp/serve/testfile.txt
           cd /tmp/serve && python3 -m http.server 8765 &
           echo "HTTP_PID=$!" >> "$GITHUB_ENV"
           sleep 1
-          # Verify server is running
           curl -sf http://localhost:8765/testfile.txt || (echo "Server not ready"; exit 1)
           echo "Local server started"
+      - name: Create target directory
+        run: mkdir -p downloads/subdir
       - id: action
         uses: .
         with:
           file-url: http://localhost:8765/testfile.txt
+          location: downloads/subdir
       - name: Stop local HTTP server
         if: always()
         run: |
           kill "$HTTP_PID" 2>/dev/null || true
-      - name: Assert file-path output is set
+      - name: Assert file-path output contains location
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
@@ -33,17 +35,21 @@ jobs:
             echo "FAIL: file-path output is empty"
             exit 1
           fi
-          echo "PASS: file-path output is set to $FILE_PATH"
-      - name: Assert downloaded file exists
+          if [[ "$FILE_PATH" != *"downloads/subdir"* ]]; then
+            echo "FAIL: file-path does not contain expected location 'downloads/subdir'"
+            exit 1
+          fi
+          echo "PASS: file-path contains expected location"
+      - name: Assert file exists in specified location
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
         run: |
-          echo "Checking file exists at: $FILE_PATH"
+          echo "Checking file at: $FILE_PATH"
           if [ ! -f "$FILE_PATH" ]; then
-            echo "FAIL: downloaded file not found at $FILE_PATH"
+            echo "FAIL: file not found at $FILE_PATH"
             exit 1
           fi
-          echo "PASS: file exists"
+          echo "PASS: file exists in specified location"
       - name: Assert file is not empty
         env:
           FILE_PATH: ${{ steps.action.outputs.file-path }}
@@ -53,14 +59,3 @@ jobs:
             exit 1
           fi
           echo "PASS: file is non-empty"
-      - name: Assert file content is correct
-        env:
-          FILE_PATH: ${{ steps.action.outputs.file-path }}
-        run: |
-          CONTENT=$(cat "$FILE_PATH")
-          echo "Content: $CONTENT"
-          if [ "$CONTENT" != "Hello from download-file-action test" ]; then
-            echo "FAIL: file content does not match expected"
-            exit 1
-          fi
-          echo "PASS: file content matches"

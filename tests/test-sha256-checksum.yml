@@ -1,0 +1,50 @@
+name: Test download with SHA256 checksum
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start local HTTP server and compute SHA256
+        id: setup
+        run: |
+          mkdir -p /tmp/serve
+          echo -n "SHA256 checksum test content" > /tmp/serve/sha256test.txt
+          cd /tmp/serve && python3 -m http.server 8765 &
+          echo "HTTP_PID=$!" >> "$GITHUB_ENV"
+          sleep 1
+          curl -sf http://localhost:8765/sha256test.txt || (echo "Server not ready"; exit 1)
+          HASH=$(sha256sum /tmp/serve/sha256test.txt | awk '{print $1}')
+          echo "sha256=$HASH" >> "$GITHUB_OUTPUT"
+          echo "Computed SHA256: $HASH"
+      - id: action
+        uses: .
+        with:
+          file-url: http://localhost:8765/sha256test.txt
+          file-name: LICENSE-downloaded.txt
+          sha256: ${{ steps.setup.outputs.sha256 }}
+      - name: Stop local HTTP server
+        if: always()
+        run: |
+          kill "$HTTP_PID" 2>/dev/null || true
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path is set"
+      - name: Assert downloaded file exists and checksum passed
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "Checking file at: $FILE_PATH"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: file not found at $FILE_PATH (checksum may have failed)"
+            exit 1
+          fi
+          echo "PASS: file exists and SHA256 checksum was verified"

@@ -1,0 +1,54 @@
+name: Test download with custom filename
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start local HTTP server
+        run: |
+          mkdir -p /tmp/serve
+          echo "Custom filename test content" > /tmp/serve/original.txt
+          cd /tmp/serve && python3 -m http.server 8765 &
+          echo "HTTP_PID=$!" >> "$GITHUB_ENV"
+          sleep 1
+          curl -sf http://localhost:8765/original.txt || (echo "Server not ready"; exit 1)
+          echo "Local server started"
+      - id: action
+        uses: .
+        with:
+          file-url: http://localhost:8765/original.txt
+          file-name: my-custom-license.txt
+      - name: Stop local HTTP server
+        if: always()
+        run: |
+          kill "$HTTP_PID" 2>/dev/null || true
+      - name: Assert file-path output contains custom filename
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          if [[ "$FILE_PATH" != *"my-custom-license.txt"* ]]; then
+            echo "FAIL: file-path does not contain custom filename 'my-custom-license.txt'"
+            exit 1
+          fi
+          echo "PASS: file-path contains custom filename"
+      - name: Assert custom-named file exists
+        run: |
+          if [ ! -f "my-custom-license.txt" ]; then
+            echo "FAIL: custom-named file 'my-custom-license.txt' not found"
+            exit 1
+          fi
+          echo "PASS: custom-named file exists"
+      - name: Assert file is not empty
+        run: |
+          if [ ! -s "my-custom-license.txt" ]; then
+            echo "FAIL: downloaded file is empty"
+            exit 1
+          fi
+          echo "PASS: file is non-empty"
