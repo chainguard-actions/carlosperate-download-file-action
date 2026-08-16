@@ -1,0 +1,59 @@
+name: Test MD5 Verification
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Compute MD5 of a known file
+        id: compute-md5
+        run: |
+          # Download a small stable file and compute its MD5 so we can pass it to the action
+          curl -sfL "https://raw.githubusercontent.com/actions/checkout/de0fac2e4500dabe0009e67214ff5f5447ce83dd/LICENSE" \
+            -o /tmp/ref-file
+          MD5=$(md5sum /tmp/ref-file | awk '{print $1}')
+          echo "md5=$MD5" >> "$GITHUB_OUTPUT"
+
+      - id: action
+        uses: .
+        with:
+          file-url: "https://raw.githubusercontent.com/actions/checkout/de0fac2e4500dabe0009e67214ff5f5447ce83dd/LICENSE"
+          file-name: "license-md5-test.txt"
+          location: "/tmp/md5-test"
+          md5: ${{ steps.compute-md5.outputs.md5 }}
+
+      - name: Assert file-path output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "actual file-path: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path output is set"
+
+      - name: Assert downloaded file exists
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "checking: $FILE_PATH"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: downloaded file not found at $FILE_PATH"
+            exit 1
+          fi
+          echo "PASS: file exists"
+
+      - name: Assert file has expected name
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          BASENAME=$(basename "$FILE_PATH")
+          echo "basename: $BASENAME"
+          if [ "$BASENAME" != "license-md5-test.txt" ]; then
+            echo "FAIL: expected filename 'license-md5-test.txt', got '$BASENAME'"
+            exit 1
+          fi
+          echo "PASS: filename is correct"

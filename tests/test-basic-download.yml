@@ -1,0 +1,52 @@
+name: Test basic file download
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/releases/download/v1.0.0/download-file-action-1.0.0.tar.gz'
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path output is set to $FILE_PATH"
+      - name: Assert downloaded file exists
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "Checking file exists at: $FILE_PATH"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: downloaded file not found at $FILE_PATH"
+            exit 1
+          fi
+          echo "PASS: file exists"
+      - name: Assert downloaded file is non-empty
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          if [ ! -s "$FILE_PATH" ]; then
+            echo "FAIL: downloaded file is empty"
+            exit 1
+          fi
+          echo "PASS: file is non-empty"
+      - name: Assert default filename is correct
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          BASENAME="$(basename "$FILE_PATH")"
+          echo "basename: $BASENAME"
+          if [ "$BASENAME" != "download-file-action-1.0.0.tar.gz" ]; then
+            echo "FAIL: expected filename 'download-file-action-1.0.0.tar.gz' but got '$BASENAME'"
+            exit 1
+          fi
+          echo "PASS: filename matches"

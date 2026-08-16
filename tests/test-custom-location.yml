@@ -1,0 +1,52 @@
+name: Test download to custom location
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create target directory
+        run: mkdir -p "$GITHUB_WORKSPACE/download-test-dir"
+      - id: action
+        uses: .
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/releases/download/v1.0.0/download-file-action-1.0.0.tar.gz'
+          file-name: archive-in-dir.tar.gz
+          location: ${{ github.workspace }}/download-test-dir
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path output is set"
+      - name: Assert file exists in custom location
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+          EXPECTED_DIR: ${{ github.workspace }}/download-test-dir
+        run: |
+          echo "file-path: $FILE_PATH"
+          echo "expected dir: $EXPECTED_DIR"
+          # Check the file exists at the reported path
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: file not found at $FILE_PATH"
+            exit 1
+          fi
+          # Check the file is in the expected directory
+          ACTUAL_DIR="$(dirname "$FILE_PATH")"
+          echo "actual dir: $ACTUAL_DIR"
+          if [ "$ACTUAL_DIR" != "$EXPECTED_DIR" ]; then
+            echo "FAIL: expected file in '$EXPECTED_DIR' but found in '$ACTUAL_DIR'"
+            exit 1
+          fi
+          # Check the filename
+          BASENAME="$(basename "$FILE_PATH")"
+          if [ "$BASENAME" != "archive-in-dir.tar.gz" ]; then
+            echo "FAIL: expected filename 'archive-in-dir.tar.gz' but got '$BASENAME'"
+            exit 1
+          fi
+          echo "PASS: file exists in custom location with correct name"

@@ -1,0 +1,54 @@
+name: Test download with SHA256 verification
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          file-url: 'https://github.com/carlosperate/download-file-action/archive/refs/tags/v1.0.3.tar.gz'
+          file-name: name_sha256.tar.gz
+          sha256: '76ef5cf6e910a4955f713fb36cca6f90ffeee6ffafe743754716e149d68136de'
+      - name: Assert file-path output is set
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "file-path: $FILE_PATH"
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: file-path output is empty"
+            exit 1
+          fi
+          echo "PASS: file-path output is set"
+      - name: Assert verified file exists
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          echo "Checking file exists at: $FILE_PATH"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "FAIL: verified file not found at $FILE_PATH"
+            exit 1
+          fi
+          echo "PASS: verified file exists"
+      - name: Assert filename is correct
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          BASENAME="$(basename "$FILE_PATH")"
+          echo "basename: $BASENAME"
+          if [ "$BASENAME" != "name_sha256.tar.gz" ]; then
+            echo "FAIL: expected filename 'name_sha256.tar.gz' but got '$BASENAME'"
+            exit 1
+          fi
+          echo "PASS: filename is correct"
+      - name: Assert file is non-empty
+        env:
+          FILE_PATH: ${{ steps.action.outputs.file-path }}
+        run: |
+          if [ ! -s "$FILE_PATH" ]; then
+            echo "FAIL: verified file is empty"
+            exit 1
+          fi
+          echo "PASS: verified file is non-empty"
